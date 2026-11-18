@@ -1,49 +1,49 @@
-# family-template
+# bharatlas
 
-Start a new scraping family for the s1d-labs pool. A family is one kind of site (or one platform many sites share); the pool runs
-its code on members' GitHub Actions minutes. This template is a complete, working family for
-[books.toscrape.com](https://books.toscrape.com) (a public site made for scraping practice): copy it, then change it.
+Open geo layers of India from [bharatlas](https://bharatlas.com) (Urban Morph), for the s1d-labs scrape pool. The pool runs this
+code on members' GitHub Actions minutes, coordinated by [scrape.s1d.me](https://scrape.s1d.me); the full contract is in `CLAUDE.md`.
 
-## Make your family
+bharatlas republishes open data from government bodies and open-data groups (LGD, Survey of India, Bhuvan, Forest Survey of
+India, CWC, PMGSY, DataMeet, OpenCity and others). Its robots.txt welcomes crawlers, the API needs no key (120 requests a minute
+per IP), and each layer names its licence and source.
 
-1. Ask the hub owner to **add the family** on [scrape.s1d.me/runners](https://scrape.s1d.me/runners) (name, what it scrapes, owner).
-   The hub creates `s1d-labs/<family>` from this template, names the family in `scrape.json`, and makes the owner admin
-   (with the GitHub account they added on home.s1d.me).
-2. Clone it: `gh repo clone s1d-labs/<family>`.
-3. In your repo:
-   - `scrape.json`: set `"family"` to the family name; list your tasks (one command each) and setup steps.
-   - `family.py`: your projects (one queue of work per site), their target hosts, the env your command needs, the queue items,
-     and the health checks.
-   - `crawl.py` (or whatever your tasks run): the scraper.
-   - `README.md`: replace this text with your family's own: what it scrapes, its projects and tasks, and how to run the check.
-     Delete `crawl.py`, `tests/pages/catalogue-page-1.html` and the example test when your own task replaces them.
-4. **Check it**: `scrape-check` in the repo (needs `pip install "scrape-hub-client @ git+https://github.com/s1d-labs/runner@sdk-stable#subdirectory=sdk"`).
-   It runs your setup and task against a local stand-in hub on 3 real items and says what works. The **check** workflow runs it
-   (and `tests/`) on every push.
-5. Run the **setup** workflow (Actions → setup → Run workflow). It registers the projects, puts them in the pool and registers
-   the health checks.
-6. The hub starts runs in members' accounts when the pool is on and there is work. Watch it on scrape.s1d.me.
+## Projects
 
-## What your code gets
+### `bharatlas-layers`: every curated layer
 
-The pool worker ([s1d-labs/runner](https://github.com/s1d-labs/runner)) checks out this repo at `main`, runs the `setup` steps from
-`scrape.json`, and for each assignment runs the task's command here with:
+- **Queue**: one item per layer file, key `<layer id>@<etag 12>` (`family.py`, `layer_items()`). Setup lists `/api/v1/layers`
+  and reads each file's ETag (HEAD). A new Setup run adds only the layers whose file changed. About 160 layers, 8 GB.
+- **Task** `layers` (`layers.py`): downloads the layer's Parquet file (GeoJSON for the 5 layers with no Parquet) from bharatlas's
+  public R2 bucket, checks the size and the Parquet magic bytes, reads the column schema (`/api/v1/layers/<id>/schema`).
+- **Files**: `bharatlas-layers/<layer id>/<etag 12>/<file>` in the family's bucket.
+- **Records**: one per layer, id = layer id: `category`, `level`, `source`, `licence`, `source_name`, `source_url`,
+  `publisher_name`, `attribution`, `notes`, `rows`, `downloads` (all formats), `format`, `file_url`, `version`, `bytes`,
+  `sha256`, `key`, `columns`.
 
-| Variable | What |
-|---|---|
-| `SCRAPE_POOL_PROJECT` | the project to work on |
-| `SCRAPE_JOB_INDEX`, `SCRAPE_TOTAL_JOBS` | this worker's slice |
-| `SCRAPE_MAX_HOURS` | how long the command may run |
-| `SCRAPE_HUB_URL` | the hub |
-| your project's `env` | e.g. `SITE` |
+### `bharatlas-releases`: dated releases
 
-Use `scrape_hub_client` (`HubClient`) to claim queue items, store records, upload files and report counters. Exit when there is
-nothing left; the worker then asks the hub for the next assignment.
+- **Queue**: one item per release code from `/releases/index.json` (for example `bharatlas-cw-2026.11`, the Census 2011 <-> LGD
+  crosswalk, and `bharatlas-catalog-2026.11`). Releases never change.
+- **Task** `releases` (`releases.py`): every file of the manifest, checked against its SHA-256, plus `manifest.json`,
+  `CHANGES.md` and `SHA256SUMS`, at `bharatlas-releases/<code>/<file>`. One record per release.
 
-## Rules (the full contract is in CLAUDE.md, written for people and for Claude Code)
+## Not collected
 
-- **Be polite.** Use `hub.settings["threads"]` and `delay_ms`, idle while `hub.settings["paused"]`, and report `n_http` and
-  `t_http_s` for every request and `http_<code>` / `http_error` for failures: the hub throttles you from these.
-- **Files go through the hub** (`hub.upload_many`): it signs each upload into the family's bucket (500 GB per member) and stops at
-  the cap. Never put storage keys in this repo.
-- **Public data only**; read the site's terms first. See the team docs on home.s1d.me (Scraping rules).
+- Community submissions (`/api/v1/submissions`): people's own uploads, credited to private persons.
+- The PMTiles, KML, Shapefile and GeoJSON copies of layers that have Parquet (the same data).
+
+## Licences and credit
+
+- Each record has the layer's licence and its original source. Credit the original source first (for example "Local Government
+  Directory, via bharatlas").
+- Some layers are Bhuvan (NRSC/ISRO) data that bharatlas marks CC0. Bhuvan's own data policy is stricter. Check before you
+  republish those layers.
+
+## Working here
+
+```
+python layers.py --local ngt_zones                 # one layer to ./local-out/
+python releases.py --local bharatlas-cw-2026.11    # one release to ./local-out/
+python -m pytest tests -q                          # pure-function tests, no network
+scrape-check --project bharatlas-releases --task releases --items 1
+```

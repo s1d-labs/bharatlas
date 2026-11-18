@@ -26,7 +26,7 @@ jobs:
       - name: Parsing tests
         run: python -m pytest tests -q
       - name: scrape-check (local stand-in hub, 2 real items)
-        run: scrape-check --items 2
+        run: scrape-check --project bharatlas-releases --task releases --items 1   # small; layer files are up to 830 MB, checked by hand
       - uses: actions/upload-artifact@v6
         if: ${{ always() }}
         with:

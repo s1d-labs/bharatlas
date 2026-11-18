@@ -1,13 +1,6 @@
 {
   "family": "bharatlas",
-  "about": "Map data",
-  "setup": [
-    "pip install -r requirements.txt"
-  ],
-  "tasks": {
-    "crawl": [
-      "python",
-      "crawl.py"
-    ]
-  }
+  "about": "bharatlas.com: India's open atlas (boundaries, forests, water, services) as Parquet layers, plus its dated releases",
+  "setup": ["pip install -r requirements.txt"],
+  "tasks": {"layers": ["python", "layers.py"], "releases": ["python", "releases.py"]}
 }
